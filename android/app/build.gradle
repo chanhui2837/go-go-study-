@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gogostudy.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.gogostudy.app'
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // 프로젝트 루트의 index.html을 단일 소스로 유지: 빌드 때마다 에셋으로 복사
+    tasks.register('syncWeb') {
+        doLast {
+            copy {
+                from '../index.html'
+                into 'src/main/assets/www'
+            }
+        }
+    }
+    afterEvaluate {
+        tasks.named('preBuild').configure { dependsOn('syncWeb') }
+    }
+
+    buildTypes {
+        debug {}
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
