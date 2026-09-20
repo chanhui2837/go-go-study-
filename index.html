@@ -65,6 +65,7 @@ textarea{width:100%;min-height:85px;border:1.5px solid #e2d9c6;border-radius:10p
 .mrow{display:flex;gap:8px;margin-top:10px}
 .avpick{font-size:22px;cursor:pointer;padding:4px 6px;border-radius:8px;border:2px solid transparent}
 .avpick.sel{border-color:#e8912d;background:#fff7e8}
+.avpick img{width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:-7px;pointer-events:none}
 table.board{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
 table.board th,table.board td{border:1px solid #ddd;padding:7px;text-align:center}
 table.board th{background:#3a2e1f;color:#ffd98e}
@@ -151,6 +152,9 @@ footer{text-align:center;color:#999;font-size:12px;margin-top:34px}
 <div class="modal" id="profModal"><div class="mbox">
 <h2>프로필 바꾸기</h2>
 <div id="avRow" style="margin:6px 0"></div>
+<input id="avFile" type="file" accept="image/*" style="display:none" onchange="onAvFile(this)">
+<p style="font-size:12px;color:#888">📷 타일을 눌러 직접 사진을 올릴 수도 있어요 (사진은 이 브라우저에만 저장돼요)</p>
+<div><button class="reset" id="avClear" style="display:none" onclick="clearCustomAv()">올린 사진 지우기</button></div>
 <input id="pfName" placeholder="표시 이름" maxlength="20">
 <input id="pfGoal" placeholder="목표 (예: 중간고사 90점!)" maxlength="60">
 <div class="err" id="profErr"></div>
@@ -4900,6 +4904,40 @@ function setLevel(l){selL=l;document.querySelectorAll("#lvBtns .fbtn").forEach(f
 /* ===== 서버 연동 (Render+Mongo, file:// 에선 로컬 전용) ===== */
 let ME=null, AUTH_MODE="login", AV="🦊";
 const AVS=["🦊","🐯","🐼","🐸","🐵","🦁","🐷","🐙","🦄","🐝","🌸","⚽"];
+/* 직접 올린 프로필 사진 (이 브라우저 localStorage에만 저장, 서버에는 이모지가 유지됨) */
+let CUSTOM_AV="", USE_CUSTOM=false;
+try{CUSTOM_AV=localStorage.getItem("sahoe_avatar_img")||"";if(CUSTOM_AV.indexOf("data:image/")!==0)CUSTOM_AV="";USE_CUSTOM=localStorage.getItem("sahoe_avatar_custom")==="1"&&CUSTOM_AV!=="";}catch(e){CUSTOM_AV="";USE_CUSTOM=false;}
+function avHtml(fb,size){if(USE_CUSTOM&&CUSTOM_AV)return '<img src="'+CUSTOM_AV+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;vertical-align:-4px">';return esc(fb||"🦊");}
+function renderAvRow(){
+  let h="";
+  if(CUSTOM_AV)h+='<span class="avpick'+(USE_CUSTOM?" sel":"")+'" onclick="pickCustom()" title="내 사진"><img src="'+CUSTOM_AV+'"></span>';
+  h+=AVS.map(function(a){return '<span class="avpick'+(!USE_CUSTOM&&a===AV?" sel":"")+'" onclick="pickAv(\''+a+'\')">'+a+"</span>"}).join("");
+  h+='<span class="avpick" onclick="document.getElementById(\'avFile\').click()" title="사진 올리기">📷</span>';
+  document.getElementById("avRow").innerHTML=h;
+  document.getElementById("avClear").style.display=CUSTOM_AV?"inline":"none";
+}
+function pickCustom(){USE_CUSTOM=true;try{localStorage.setItem("sahoe_avatar_custom","1")}catch(e){}renderAvRow();}
+function onAvFile(el){
+  const f=el.files&&el.files[0];el.value="";if(!f)return;
+  const E=document.getElementById("profErr");E.textContent="";
+  if(f.size>8*1024*1024){E.textContent="8MB 이하 사진을 골라주세요.";return;}
+  const rd=new FileReader();
+  rd.onload=function(){
+    const im=new Image();
+    im.onload=function(){
+      const M=160;let w=im.width,h=im.height;const r=Math.min(1,M/Math.max(w,h));w=Math.max(1,Math.round(w*r));h=Math.max(1,Math.round(h*r));
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(im,0,0,w,h);
+      try{CUSTOM_AV=cv.toDataURL("image/jpeg",0.82);localStorage.setItem("sahoe_avatar_img",CUSTOM_AV);}
+      catch(e){E.textContent="사진이 너무 커서 저장할 수 없어요.";return;}
+      USE_CUSTOM=true;try{localStorage.setItem("sahoe_avatar_custom","1")}catch(e){}
+      renderAvRow();
+    };
+    im.onerror=function(){E.textContent="사진을 읽을 수 없어요.";};
+    im.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function clearCustomAv(){CUSTOM_AV="";USE_CUSTOM=false;try{localStorage.removeItem("sahoe_avatar_img");localStorage.setItem("sahoe_avatar_custom","0")}catch(e){}renderAvRow();}
 function token(){try{return localStorage.getItem("sahoe_token")||""}catch(e){return ""}}
 function apiBase(){return (location.protocol.indexOf("http")===0)?"":""}
 async function api(path,opt){
@@ -4913,7 +4951,7 @@ async function api(path,opt){
 }
 function refreshWho(){
   const w=document.getElementById("whoBox"),a=document.getElementById("authBtn"),p=document.getElementById("profBtn"),o=document.getElementById("logoutBtn");
-  if(ME){w.textContent=(ME.avatar||"🦊")+" "+(ME.displayName||ME.username)+" · 서버누적 "+(ME.totalScore||0)+"점 ("+(ME.completedCount||0)+" DAY)"+(ME.goal?" · 🎯 "+ME.goal:"");
+  if(ME){w.innerHTML=avHtml(ME.avatar,22)+" "+esc(ME.displayName||ME.username)+" · 서버누적 "+esc(String(ME.totalScore||0))+"점 ("+esc(String(ME.completedCount||0))+" DAY)"+(ME.goal?" · 🎯 "+esc(ME.goal):"");
     a.classList.add("hide");p.classList.remove("hide");o.classList.remove("hide");}
   else{w.textContent="👤 비로그인 (기록은 이 브라우저에만 저장)";a.classList.remove("hide");p.classList.add("hide");o.classList.add("hide");}
 }
@@ -4950,10 +4988,10 @@ function openProfile(){
   document.getElementById("pfName").value=ME.displayName||"";
   document.getElementById("pfGoal").value=ME.goal||"";
   document.getElementById("profErr").textContent="";
-  document.getElementById("avRow").innerHTML=AVS.map(function(a){return '<span class="avpick'+(a===AV?" sel":"")+'" onclick="pickAv(\''+a+'\')">'+a+"</span>"}).join("");
+  renderAvRow();
   document.getElementById("profModal").classList.add("open");
 }
-function pickAv(a){AV=a;document.querySelectorAll(".avpick").forEach(function(s){s.classList.toggle("sel",s.textContent===a)});}
+function pickAv(a){AV=a;USE_CUSTOM=false;try{localStorage.setItem("sahoe_avatar_custom","0")}catch(e){}renderAvRow();}
 function closeProfile(){document.getElementById("profModal").classList.remove("open");}
 async function saveProfile(){
   const E=document.getElementById("profErr");E.textContent="";
@@ -4982,7 +5020,7 @@ async function openBoard(sub,keep){
   const B=document.getElementById("boardBody");B.innerHTML='<p style="color:#888;font-size:13px">불러오는 중…</p>';
   try{const j=await api("/api/leaderboard?subject="+encodeURIComponent(boardSubj));
     if(!j.board.length){B.innerHTML='<p style="color:#888">아직 등록된 기록이 없어요. 로그인 후 문제를 풀어보세요!</p>';return;}
-    B.innerHTML='<table class="board"><tr><th>순위</th><th>유저</th><th>총점</th><th>완료</th></tr>'+j.board.map(function(u,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(u.avatar||"")+" "+esc(u.displayName||u.username)+(u.goal?"<br><span style='font-size:11px;color:#888'>🎯 "+esc(u.goal)+"</span>":"")+"</td><td>"+u.totalScore+"</td><td>"+u.completedCount+"</td></tr>"}).join("")+"</table>";
+    B.innerHTML='<table class="board"><tr><th>순위</th><th>유저</th><th>총점</th><th>완료</th></tr>'+j.board.map(function(u,i){const mine=ME&&u.username===ME.username;return "<tr><td>"+(i+1)+"</td><td>"+(mine?avHtml(u.avatar,22):esc(u.avatar||""))+" "+esc(u.displayName||u.username)+(u.goal?"<br><span style='font-size:11px;color:#888'>🎯 "+esc(u.goal)+"</span>":"")+"</td><td>"+u.totalScore+"</td><td>"+u.completedCount+"</td></tr>"}).join("")+"</table>";
   }catch(e){B.innerHTML='<p style="color:#c0392b;font-size:13px">서버에 연결할 수 없어요 ('+esc(e.message)+'). Render 배포 후 MONGODB_URI를 확인하세요. 로컬 file:// 실행 중이면 서버 기능은 사용 불가합니다.</p>';}
 }
 function esc(s){return String(s).replace(/</g,"&lt;")}
