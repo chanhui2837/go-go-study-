@@ -18,7 +18,7 @@ android {
     tasks.register('syncWeb') {
         doLast {
             copy {
-                from '../index.html'
+                from '../../index.html'
                 into 'src/main/assets/www'
             }
         }
