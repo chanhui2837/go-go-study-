@@ -167,7 +167,7 @@ app.post("/api/scores", needDB, auth, async (req, res) => {
   try {
     const { dayId, score, correct, subject } = req.body || {};
     if (!dayId || typeof dayId !== "string") return res.status(400).json({ error: "dayId 필요" });
-    const subj = subject === "korean" ? "korean" : subject === "history" ? "history" : "society";
+    const subj = subject === "korean" ? "korean" : subject === "history" ? "history" : subject === "science" ? "science" : "society";
     const s = Math.max(0, Math.min(100, Number(score)));
     if (!Number.isFinite(s)) return res.status(400).json({ error: "score 0~100" });
     const r = await Score.findOneAndUpdate(
@@ -199,11 +199,11 @@ app.get("/api/scores/me", needDB, auth, async (req, res) => {
   res.json({ scores: list });
 });
 
-// 리더보드 (과목별 TOP 50: ?subject=all|society|korean|history)
+// 리더보드 (과목별 TOP 50: ?subject=all|society|korean|history|science)
 app.get("/api/leaderboard", needDB, async (req, res) => {
   try {
     const q = req.query.subject;
-    const f = q === "korean" ? "korean" : q === "history" ? "history" : q === "society" ? "society" : "all";
+    const f = q === "korean" ? "korean" : q === "history" ? "history" : q === "science" ? "science" : q === "society" ? "society" : "all";
     if (f === "all") {
       const top = await User.find({})
         .sort({ totalScore: -1, completedCount: -1, updatedAt: -1 })
