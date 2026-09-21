@@ -152,7 +152,6 @@ footer{text-align:center;color:#999;font-size:12px;margin-top:34px}
 <div class="modal" id="profModal"><div class="mbox">
 <h2>프로필 바꾸기</h2>
 <div id="avRow" style="margin:6px 0"></div>
-<input id="avFile" type="file" accept="image/*" style="display:none" onchange="onAvFile(this)">
 <p style="font-size:12px;color:#888">📷 타일을 눌러 직접 사진을 올릴 수도 있어요 (사진은 이 브라우저에만 저장돼요)</p>
 <div><button class="reset" id="avClear" style="display:none" onclick="clearCustomAv()">올린 사진 지우기</button></div>
 <input id="pfName" placeholder="표시 이름" maxlength="20">
@@ -4912,7 +4911,7 @@ function renderAvRow(){
   let h="";
   if(CUSTOM_AV)h+='<span class="avpick'+(USE_CUSTOM?" sel":"")+'" onclick="pickCustom()" title="내 사진"><img src="'+CUSTOM_AV+'"></span>';
   h+=AVS.map(function(a){return '<span class="avpick'+(!USE_CUSTOM&&a===AV?" sel":"")+'" onclick="pickAv(\''+a+'\')">'+a+"</span>"}).join("");
-  h+='<span class="avpick" onclick="document.getElementById(\'avFile\').click()" title="사진 올리기">📷</span>';
+  h+='<label class="avpick" title="사진 올리기">📷<input id="avFile" type="file" accept="image/*" style="display:none" onchange="onAvFile(this)"></label>';
   document.getElementById("avRow").innerHTML=h;
   document.getElementById("avClear").style.display=CUSTOM_AV?"inline":"none";
 }
