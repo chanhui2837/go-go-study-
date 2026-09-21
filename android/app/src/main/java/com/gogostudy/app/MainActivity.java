@@ -6,15 +6,17 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
 
-    // Render에 배포한 뒤 로그인/랭킹까지 앱에서 쓰려면 아래에 배포 주소 입력
-    // (예: "https://xxx.onrender.com"). 비워 두면 내장 파일로 오프라인 문제풀이만 동작.
-    private static final String SITE_URL = "";
+    // 배포 서버 주소 (웹과 동일한 로그인·랭킹 사용)
+    private static final String SITE_URL = "https://go-go-study.onrender.com";
+    private static final String OFFLINE_URL = "file:///android_asset/www/index.html";
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
@@ -29,7 +31,15 @@ public class MainActivity extends Activity {
         st.setDomStorageEnabled(true);
         st.setLoadWithOverviewMode(true);
         st.setUseWideViewPort(true);
-        web.setWebViewClient(new WebViewClient());
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
+                // 서버 접속 실패(서버 점검·슬립 등) 시 내장 오프라인 문제풀이로 전환
+                if (r.isForMainFrame() && !String.valueOf(v.getUrl()).startsWith("file://")) {
+                    v.loadUrl(OFFLINE_URL);
+                }
+            }
+        });
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
@@ -45,7 +55,7 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
-            web.loadUrl(SITE_URL.isEmpty() ? "file:///android_asset/www/index.html" : SITE_URL);
+            web.loadUrl(SITE_URL.isEmpty() ? OFFLINE_URL : SITE_URL);
         }
     }
 
