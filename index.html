@@ -170,7 +170,7 @@ footer{text-align:center;color:#999;font-size:12px;margin-top:34px}
 <div class="modal" id="profModal"><div class="mbox">
 <h2>프로필 바꾸기</h2>
 <div id="avRow" style="margin:6px 0"></div>
-<p style="font-size:12px;color:#888">📷 타일을 눌러 직접 사진을 올릴 수도 있어요 (사진은 이 브라우저에만 저장돼요)</p>
+<p style="font-size:12px;color:#888">📷 타일을 눌러 직접 사진을 올릴 수도 있어요 (사진은 계정에 저장되어 모든 기기에서 보여요)</p>
 <div><button class="reset" id="avClear" style="display:none" onclick="clearCustomAv()">올린 사진 지우기</button></div>
 <input id="pfName" placeholder="표시 이름" maxlength="20">
 <input id="pfGoal" placeholder="목표 (예: 중간고사 90점!)" maxlength="60">
@@ -5949,6 +5949,7 @@ async function api(path,opt){
   return j;
 }
 function refreshWho(){
+  syncPhotoFromServer();
   const w=document.getElementById("whoBox"),a=document.getElementById("authBtn"),p=document.getElementById("profBtn"),o=document.getElementById("logoutBtn");
   if(ME){w.innerHTML=avHtml(ME.avatar,22)+" "+esc(ME.displayName||ME.username)+" · 서버누적 "+esc(String(ME.totalScore||0))+"점 ("+esc(String(ME.completedCount||0))+" DAY)"+(ME.goal?" · 🎯 "+esc(ME.goal):"");
     a.classList.add("hide");p.classList.remove("hide");o.classList.remove("hide");}
@@ -5994,8 +5995,33 @@ function pickAv(a){AV=a;USE_CUSTOM=false;try{localStorage.setItem("sahoe_avatar_
 function closeProfile(){document.getElementById("profModal").classList.remove("open");}
 async function saveProfile(){
   const E=document.getElementById("profErr");E.textContent="";
-  try{const j=await api("/api/me",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("pfName").value,avatar:AV,goal:document.getElementById("pfGoal").value})});ME=j.user;refreshWho();closeProfile();}
+  let photo="";
+  try{photo=(USE_CUSTOM&&CUSTOM_AV)?CUSTOM_AV:"";}catch(e){photo="";}
+  try{const j=await api("/api/me",{method:"PUT",body:JSON.stringify({displayName:document.getElementById("pfName").value,avatar:AV,goal:document.getElementById("pfGoal").value,photo:photo})});ME=j.user;refreshWho();closeProfile();}
   catch(e){E.textContent=e.message;}
+}
+/* 서버 사진 동기화: 서버가 새 타임스탬프를 가지면 서버 우선, 없으면 로컬 유지 */
+function syncPhotoFromServer(){
+  if(!ME)return;
+  try{
+    const sp=(typeof ME.photo==="string"&&ME.photo.indexOf("data:image/")===0)?ME.photo:"";
+    const st=ME.photoUpdatedAt?new Date(ME.photoUpdatedAt).getTime():0;
+    const lt=parseInt(localStorage.getItem("sahoe_avatar_time")||"0",10)||0;
+    if(sp){
+      if(!st||st>=lt||!CUSTOM_AV){
+        CUSTOM_AV=sp;USE_CUSTOM=true;
+        localStorage.setItem("sahoe_avatar_img",sp);
+        localStorage.setItem("sahoe_avatar_custom","1");
+        localStorage.setItem("sahoe_avatar_time",String(st||Date.now()));
+      }
+    }else if(st&&st>lt){
+      CUSTOM_AV="";USE_CUSTOM=false;
+      localStorage.removeItem("sahoe_avatar_img");
+      localStorage.setItem("sahoe_avatar_custom","0");
+      localStorage.setItem("sahoe_avatar_time",String(st));
+    }
+    if(ME.avatar)AV=ME.avatar;
+  }catch(e){}
 }
 async function syncScore(dayId,score,correct,subject){
   if(!token())return;

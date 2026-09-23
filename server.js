@@ -28,6 +28,8 @@ const userSchema = new mongoose.Schema(
     displayName: { type: String, default: "", maxlength: 20 },
     avatar: { type: String, default: "🦊", maxlength: 8 },
     goal: { type: String, default: "", maxlength: 60 },
+    photo: { type: String, default: "" },
+    photoUpdatedAt: { type: Date, default: null },
     totalScore: { type: Number, default: 0 },
     completedCount: { type: Number, default: 0 },
     attemptsCount: { type: Number, default: 0 },
@@ -93,6 +95,8 @@ function publicUser(u) {
     displayName: u.displayName || u.username,
     avatar: u.avatar || "🦊",
     goal: u.goal || "",
+    photo: u.photo || "",
+    photoUpdatedAt: u.photoUpdatedAt || null,
     totalScore: u.totalScore || 0,
     completedCount: u.completedCount || 0,
     attemptsCount: u.attemptsCount || 0,
@@ -146,15 +150,21 @@ app.get("/api/me", needDB, auth, async (req, res) => {
   res.json({ user: publicUser(u), scores });
 });
 
-// 프로필 바꾸기 (표시이름/아바타/목표)
+// 프로필 바꾸기 (표시이름/아바타/목표/사진)
 app.put("/api/me", needDB, auth, async (req, res) => {
   try {
     const u = await User.findById(req.me.uid);
     if (!u) return res.status(404).json({ error: "유저 없음" });
-    const { displayName, avatar, goal } = req.body || {};
+    const { displayName, avatar, goal, photo } = req.body || {};
     if (displayName !== undefined) u.displayName = String(displayName).slice(0, 20) || u.username;
     if (avatar !== undefined) u.avatar = String(avatar).slice(0, 8) || "🦊";
     if (goal !== undefined) u.goal = String(goal).slice(0, 60);
+    if (photo !== undefined) {
+      const ps = String(photo || "");
+      if (ps && (ps.length > 200000 || ps.indexOf("data:image/") !== 0)) return res.status(400).json({ error: "사진 형식이 잘못됐어요" });
+      u.photo = ps;
+      u.photoUpdatedAt = new Date();
+    }
     await u.save();
     res.json({ user: publicUser(u) });
   } catch (e) {
