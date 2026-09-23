@@ -6072,7 +6072,7 @@ function goNext(){stopTimer();let l=visibleList();let i=l.findIndex(function(x){
 function openDay(id,sh){
   let x=DB.find(function(d){return d.id===id});if(!x)return;
   stopTimer();
-  if(sh){cur={id:x.id,title:x.title,sub:x.sub,unit:x.unit,level:x.level,subject:x.subject,Q:x.Q.map(function(it){if(it.type!=="choice")return it;const idx=it.c.map(function(_,j){return j;});for(let k=idx.length-1;k>0;k--){const r=Math.floor(Math.random()*(k+1)),tmp=idx[k];idx[k]=idx[r];idx[r]=tmp;}return{tag:it.tag,type:it.type,q:it.q,c:idx.map(function(j){return it.c[j];}),a:idx.indexOf(it.a),exp:it.exp}})};}else cur=x;
+  if(sh){const srcQ=(cur&&cur.id===id&&cur._shuffled)?cur.Q:x.Q;cur={id:x.id,title:x.title,sub:x.sub,unit:x.unit,level:x.level,subject:x.subject,_shuffled:true,Q:srcQ.map(function(it){if(it.type!=="choice")return it;const others=it.c.map(function(_,j){return j;}).filter(function(j){return j!==it.a;});for(let k=others.length-1;k>0;k--){const r=Math.floor(Math.random()*(k+1)),tmp=others[k];others[k]=others[r];others[r]=tmp;}let np;do{np=Math.floor(Math.random()*5);}while(np===it.a);const nc=new Array(5);nc[np]=it.c[it.a];let oi=0;for(let j=0;j<5;j++){if(j===np)continue;nc[j]=it.c[others[oi++]];}return{tag:it.tag,type:it.type,q:it.q,c:nc,a:np,exp:it.exp}})};}else cur=x;
   document.getElementById("submitBtn").textContent="📝 25문제 다 풀었어요! 제출하고 채점하기";
   document.getElementById("nextBtn").style.display="";
   if(examMode)startTimer();
